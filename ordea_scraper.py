@@ -86,13 +86,24 @@ def extract():
 
             print("   Clicking Login...")
             sb.click('button:contains("Log in")')
-            time.sleep(10)
+            time.sleep(5)
+
+            # Check for post-login Turnstile
+            print("   Checking for Turnstile...")
+            try:
+                if "Success" not in sb.get_text("body") and sb.is_element_visible("iframe"):
+                    print("   ⚠️ Turnstile detected after login click. Attempting to solve...")
+                    sb.uc_gui_click_captcha()
+                    time.sleep(5)
+            except: pass
+
+            time.sleep(5)
 
             if "auth" not in sb.get_current_url():
                 print("✅ Login Success!")
                 break
             else:
-                print("   ⚠️ Stuck on auth page. Retrying...")
+                print("   ⚠️ Stuck on auth page. Retrying (JS click)...")
                 sb.execute_script("document.querySelector('button.primary').click()")
                 time.sleep(5)
 
