@@ -163,6 +163,10 @@ def extract():
 
                 # Debugging: If header not found
                 print(f"   ⚠️ Warning: Headers {headers} not found in page text!")
+                print(f"   ℹ️ Current URL: {sb.get_current_url()}")
+                print(f"   ℹ️ Page Text Preview (First 1000 chars):")
+                print(f"   {page_text[:1000].replace(chr(10), ' ')}")
+
                 # Print a safe snippet of text (last 500 chars might contain footer, let's print around 'meal' if present)
                 if "meal" in page_text.lower() or "posiłek" in page_text.lower():
                     print("   ℹ️ Context found containing 'meal'/'posiłek':")
