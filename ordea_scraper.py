@@ -124,7 +124,7 @@ def extract():
                 continue
 
             print("   ⏳ Waiting for data to load...")
-            time.sleep(5)
+            time.sleep(12)  # Increased wait time for CI runners
 
             page_text = sb.get_text("body")
 
@@ -160,6 +160,18 @@ def extract():
                             clean.append(l)
 
                         return " | ".join(clean) if clean else "Brak menu"
+
+                # Debugging: If header not found
+                print(f"   ⚠️ Warning: Headers {headers} not found in page text!")
+                # Print a safe snippet of text (last 500 chars might contain footer, let's print around 'meal' if present)
+                if "meal" in page_text.lower() or "posiłek" in page_text.lower():
+                    print("   ℹ️ Context found containing 'meal'/'posiłek':")
+                    try:
+                        idx = page_text.lower().find("meal")
+                        if idx == -1: idx = page_text.lower().find("posiłek")
+                        print(f"      ...{page_text[max(0, idx-50):min(len(page_text), idx+100)].replace(chr(10), ' ')}...")
+                    except: pass
+
                 return "Brak danych"
 
             data = {
