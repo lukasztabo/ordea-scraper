@@ -41,8 +41,34 @@ def extract():
             sb.uc_open_with_reconnect("https://system.ordea.net/#/auth", 20)
             time.sleep(5)
 
-            # Fill form (re-type every time just in case)
-            sb.type('#control-0', email)
+            # 1. Handle potential Cloudflare Challenge BEFORE form
+            if "Verify you are human" in sb.get_page_title() or "Just a moment" in sb.get_page_title() or sb.is_element_visible("iframe[src*='challenges']"):
+                print("⚠️ Cloudflare Challenge detected! Waiting...")
+                time.sleep(10)
+                try:
+                    sb.uc_gui_click_captcha()
+                    time.sleep(5)
+                except:
+                    print("   (Captcha click skipped or failed)")
+
+            # 2. Wait for Email Input (handling slow load or blockage)
+            print("   Waiting for login form...")
+            try:
+                # Try specific ID first, then generic type
+                if not sb.is_element_visible('#control-0'):
+                    sb.wait_for_element('input[type="text"], input[type="email"]', timeout=20)
+            except Exception as e:
+                print(f"❌ Form not found. Page Text dump:\n{sb.get_text('body')[:300]}")
+                # Retry loop
+                continue
+
+            # Fill form
+            try:
+                sb.type('#control-0', email, timeout=5)
+            except:
+                # Fallback selector
+                sb.type('input[type="text"]', email, timeout=5)
+
             sb.type('#control-1', password)
             time.sleep(2)
 
@@ -83,55 +109,70 @@ def extract():
             pid = p["id"]
             print(f"\n👧 Processing: {name} ({pid})")
 
-            # Always return to the main selector list
-            sb.open("https://system.ordea.net/#/")
-            time.sleep(8)
+            # Always return to the main selector list if not already there
+            if "selector" not in sb.get_current_url() and "auth" not in sb.get_current_url() and not sb.is_element_visible('button:contains("Switch")'):
+                sb.open("https://system.ordea.net/#/")
+                time.sleep(10)
 
             navigated = False
 
-            # Explicitly wait for the list to appear
-            try:
-                sb.wait_for_element(".list-item", timeout=15)
-            except:
-                print("   ⚠️ List items not appeared, might be stuck or slow.")
+            # 0. Check if we are already on the correct dashboard
+            if sb.is_element_visible('button:contains("Switch")') and name in sb.get_text("body"):
+                print("   ℹ️ Already on dashboard for this child.")
+                navigated = True
+            else:
+                # Explicitly wait for the list to appear
+                try:
+                    sb.wait_for_element(".list-item", timeout=20)
+                except:
+                    print("   ⚠️ List items not appeared, might be stuck or slow.")
 
-            for attempt in range(3):
-                # Try finding by ID text which is most unique
-                # Using JS to find the exact container with the ID
-                found = sb.execute_script(f"""
-                    var items = document.querySelectorAll('.list-item');
-                    for(var i=0; i<items.length; i++){{
-                        if(items[i].innerText.includes('{pid}')) {{
-                            items[i].scrollIntoView();
-                            items[i].click();
-                            return true;
+                for attempt in range(3):
+                    # Try finding by ID text which is most unique
+                    # Using JS to find the exact container with the ID
+                    found = sb.execute_script(f"""
+                        var items = document.querySelectorAll('.list-item');
+                        for(var i=0; i<items.length; i++){{
+                            if(items[i].innerText.includes('{pid}')) {{
+                                items[i].scrollIntoView({{block: 'center'}});
+                                return true;
+                            }}
                         }}
-                    }}
-                    return false;
-                """)
+                        return false;
+                    """)
 
-                if found:
-                    print(f"   Clicking {name} via JS...")
-                    time.sleep(5)
-                else:
-                    print(f"   ⚠️ Could not find element for {pid} via JS, trying standard selectors...")
-                    selectors = [f'div:contains("{pid}")', f'div:contains("{name}")']
-                    for s in selectors:
-                        if sb.is_element_visible(s):
-                            sb.click(s)
-                            print(f"   Clicked {s}")
-                            time.sleep(5)
-                            break
+                    time.sleep(1) # Wait for scroll
 
-                # Verify navigation
-                if sb.is_element_visible('button:contains("Switch")') or \
-                   sb.is_element_visible('button:contains("Zmień")') or \
-                   "meal" in sb.get_text("body").lower():
-                    navigated = True
-                    break
-                else:
-                    print("   ⚠️ Click seemed to fail (still on selector?). Retrying...")
-                    time.sleep(2)
+                    if found:
+                        print(f"   Clicking {name} via JS...")
+                        # Click via JS
+                        sb.execute_script(f"""
+                        var items = document.querySelectorAll('.list-item');
+                        for(var i=0; i<items.length; i++){{
+                            if(items[i].innerText.includes('{pid}')) {{ items[i].click(); }}
+                        }}
+                        """)
+                        time.sleep(8) # Wait for React transition
+                    else:
+                        print(f"   ⚠️ Could not find element for {pid} via JS, trying standard selectors...")
+                        selectors = [f'div:contains("{pid}")', f'div:contains("{name}")']
+                        for s in selectors:
+                            if sb.is_element_visible(s):
+                                sb.click(s)
+                                print(f"   Clicked {s}")
+                                time.sleep(8)
+                                break
+
+                    # Verify navigation
+                    if sb.is_element_visible('button:contains("Switch")') or \
+                       sb.is_element_visible('button:contains("Zmień")') or \
+                       "meal" in sb.get_text("body").lower():
+                        navigated = True
+                        break
+                    else:
+                        print(f"   ⚠️ Click seemed to fail (Attempt {attempt+1}/3). Retrying...")
+                        sb.open("https://system.ordea.net/#/") # Force reload
+                        time.sleep(8)
 
             if not navigated:
                 print(f"   ❌ Failed to enter dashboard for {name}")
