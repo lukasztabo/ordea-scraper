@@ -16,14 +16,14 @@ def extract():
     # Get credentials from environment variables
     email = os.getenv("ORDEA_EMAIL")
     password = os.getenv("ORDEA_PASSWORD")
-    truenas_url = os.getenv("TRUENAS_URL")  # http://your-truenas-ip:3010/api/update
+    ha_webhook_url = os.getenv("HA_WEBHOOK_URL")  # Home Assistant webhook URL
 
     if not email or not password:
         print("❌ Error: ORDEA_EMAIL and ORDEA_PASSWORD must be set!")
         exit(1)
 
-    if not truenas_url:
-        print("⚠️ Warning: TRUENAS_URL not set. Data will only be saved locally.")
+    if not ha_webhook_url:
+        print("⚠️ Warning: HA_WEBHOOK_URL not set. Data will only be saved locally.")
 
     with SB(uc=True, headless=True, incognito=True) as sb:
         print("🔐 Logging in to Ordea...")
@@ -194,19 +194,18 @@ def extract():
             json.dump(results, f, ensure_ascii=False, indent=2)
         print("\n💾 Saved to meals.json")
 
-        # Send to TrueNAS
-        if truenas_url:
+        # Send to Home Assistant
+        if ha_webhook_url:
             try:
-                print(f"\n📤 Sending data to TrueNAS: {truenas_url}")
-                response = requests.post(truenas_url, json=results, timeout=10)
+                print(f"\n📤 Sending data to Home Assistant webhook...")
+                response = requests.post(ha_webhook_url, json=results, timeout=10)
                 if response.status_code == 200:
-                    print("✅ Successfully sent to TrueNAS!")
-                    print(f"   Response: {response.json()}")
+                    print("✅ Successfully sent to Home Assistant!")
                 else:
-                    print(f"⚠️ TrueNAS returned status {response.status_code}")
+                    print(f"⚠️ Home Assistant returned status {response.status_code}")
                     print(f"   Response: {response.text}")
             except Exception as e:
-                print(f"❌ Failed to send to TrueNAS: {e}")
+                print(f"❌ Failed to send to Home Assistant: {e}")
 
         # Print report
         print("\n" + "="*60)
