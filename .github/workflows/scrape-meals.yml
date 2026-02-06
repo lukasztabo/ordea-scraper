@@ -1,0 +1,47 @@
+name: Scrape Ordea Meals
+
+# Run automatically every day at 6:00 AM Warsaw time (5:00 AM UTC)
+on:
+  schedule:
+    - cron: '0 5 * * *'  # 5:00 AM UTC = 6:00 AM CET/CEST
+
+  # Also allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install seleniumbase requests
+
+      - name: 🌐 Install Chrome/Chromium for SeleniumBase
+        run: |
+          python -m seleniumbase install chromium
+
+      - name: 🍽️ Run meal scraper
+        env:
+          ORDEA_EMAIL: ${{ secrets.ORDEA_EMAIL }}
+          ORDEA_PASSWORD: ${{ secrets.ORDEA_PASSWORD }}
+          TRUENAS_URL: ${{ secrets.TRUENAS_URL }}
+        run: |
+          python ordea_scraper.py
+
+      - name: 📤 Upload meals.json as artifact (optional)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: meals-data
+          path: meals.json
+          retention-days: 7
