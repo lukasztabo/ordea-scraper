@@ -25,57 +25,44 @@ def extract():
     if not truenas_url:
         print("⚠️ Warning: TRUENAS_URL not set. Data will only be saved locally.")
 
-    with SB(uc=True, headless=True) as sb:
+    with SB(uc=True, headless=True, incognito=True) as sb:
         print("🔐 Logging in to Ordea...")
         sb.driver.set_window_size(1920, 1080)
-        sb.uc_open_with_reconnect("https://system.ordea.net/#/auth", 20)
-        time.sleep(10)
+
+        # Open page with extended timeout
+        sb.uc_open_with_reconnect("https://system.ordea.net/#/auth", 30)
+        time.sleep(15)  # Longer initial wait for Turnstile
 
         try:
             if sb.is_element_visible('button:contains("OK")'):
                 sb.click('button:contains("OK")')
+                time.sleep(2)
         except:
             pass
 
         # Login
         print("📝 Filling in login form...")
-        sb.type('#control-0', email)
-        sb.type('#control-1', password)
-        time.sleep(3)
+        sb.type('#control-0', email, timeout=10)
+        time.sleep(2)
+        sb.type('#control-1', password, timeout=10)
+        time.sleep(5)  # Wait after password entry
 
-        # Check Turnstile
-        print("🔍 Checking Turnstile CAPTCHA...")
-        turnstile_ok = False
-        for i in range(15):
-            if "Success" in sb.get_text("body"):
-                print("✅ Turnstile OK (detected 'Success' text)")
-                turnstile_ok = True
-                break
-
-            if i == 5:
-                print("🤖 Attempting active CAPTCHA solving...")
-                try:
-                    sb.uc_gui_click_captcha()
-                except Exception as e:
-                    print(f"   Note: {e}")
-
-            time.sleep(1)
-
-        if not turnstile_ok:
-            print("⚠️ Turnstile not detected. Trying login anyway...")
+        # Wait for Turnstile to auto-resolve (it often does in headless with uc mode)
+        print("⏳ Waiting for Turnstile CAPTCHA to resolve...")
+        time.sleep(20)  # Extended wait for Turnstile auto-solve
 
         print("🚪 Clicking Log in...")
         sb.click('button:contains("Log in")')
-        time.sleep(2)
+        time.sleep(5)
 
         # Verify login
-        for attempt in range(10):
-            if "auth" not in sb.get_current_url():
-                print(f"✅ Logged in! URL: {sb.get_current_url()}")
+        for attempt in range(15):  # More attempts
+            current_url = sb.get_current_url()
+            if "auth" not in current_url:
+                print(f"✅ Logged in! URL: {current_url}")
                 break
-            print(f"   Retry {attempt + 1}/10...")
-            sb.press_keys('#control-1', '\n')
-            time.sleep(3)
+            print(f"   Retry {attempt + 1}/15... Still on: {current_url}")
+            time.sleep(5)  # Longer wait between retries
 
             if "auth" in sb.get_current_url():
                 sb.execute_script("document.querySelector('button.primary, button[type=submit]').click()")
