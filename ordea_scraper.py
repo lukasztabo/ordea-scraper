@@ -29,9 +29,9 @@ def extract():
         print("🔐 Logging in to Ordea...")
         sb.driver.set_window_size(1920, 1080)
 
-        # Open page with extended timeout
+        # Open login page
         sb.uc_open_with_reconnect("https://system.ordea.net/#/auth", 30)
-        time.sleep(15)  # Longer initial wait for Turnstile
+        time.sleep(10)
 
         try:
             if sb.is_element_visible('button:contains("OK")'):
@@ -40,41 +40,22 @@ def extract():
         except:
             pass
 
-        # Login
+        # Fill login form
         print("📝 Filling in login form...")
         sb.type('#control-0', email, timeout=10)
         time.sleep(2)
         sb.type('#control-1', password, timeout=10)
-        time.sleep(5)  # Wait after password entry
+        time.sleep(3)
 
-        # Wait for Turnstile to auto-resolve (it often does in headless with uc mode)
-        print("⏳ Waiting for Turnstile CAPTCHA to resolve...")
-        time.sleep(20)  # Extended wait for Turnstile auto-solve
-
-        print("🚪 Clicking Log in...")
+        # Click login and wait for Turnstile
+        print("🚪 Submitting login (waiting for Turnstile)...")
         sb.click('button:contains("Log in")')
-        time.sleep(5)
+        time.sleep(15)  # Wait for Turnstile to resolve
 
-        # Verify login
-        for attempt in range(15):  # More attempts
-            current_url = sb.get_current_url()
-            if "auth" not in current_url:
-                print(f"✅ Logged in! URL: {current_url}")
-                break
-            print(f"   Retry {attempt + 1}/15... Still on: {current_url}")
-            time.sleep(5)  # Longer wait between retries
-
-            if "auth" in sb.get_current_url():
-                sb.execute_script("document.querySelector('button.primary, button[type=submit]').click()")
-                time.sleep(3)
-
-        print("⏳ Waiting for system to load...")
-        time.sleep(20)
-
-        if "auth" in sb.get_current_url():
-            print("⚠️ Still on login page. Trying manual navigation...")
-            sb.open("https://system.ordea.net/#/")
-            time.sleep(15)
+        # Navigate directly to dashboard (skip login verification)
+        print("📍 Navigating to dashboard...")
+        sb.open("https://system.ordea.net/#/")
+        time.sleep(10)
 
         results = []
         participants = [
