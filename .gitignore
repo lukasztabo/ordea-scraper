@@ -9,8 +9,8 @@ venv/
 
 # Data files
 meals.json
-*.txt
 page_dump_*.txt
+!requirements.txt
 
 # IDE
 .vscode/
