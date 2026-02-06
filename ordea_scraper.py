@@ -41,17 +41,31 @@ def extract():
             sb.uc_open_with_reconnect("https://system.ordea.net/#/auth", 20)
             time.sleep(5)
 
-            # 1. Handle potential Cloudflare Challenge BEFORE form
+            # 1. Handle Cookie Banner (New Blocker!)
+            if sb.is_element_visible('button:contains("Rozumiem")') or \
+               sb.is_element_visible('button:contains("Akceptuj")') or \
+               sb.is_element_visible('button:contains("Accept")') or \
+               sb.is_element_visible('button:contains("OK")'):
+                print("🍪 Removing Cookie Banner...")
+                try:
+                    sb.click('button:contains("Rozumiem")')
+                except:
+                    try: sb.click('button:contains("Akceptuj")')
+                    except:
+                        try: sb.click('button:contains("Accept")')
+                        except:
+                            try: sb.click('button:contains("OK")')
+                            except: pass
+                time.sleep(2)
+
+            # 2. Handle potential Cloudflare Challenge
             if "Verify you are human" in sb.get_page_title() or "Just a moment" in sb.get_page_title() or sb.is_element_visible("iframe[src*='challenges']"):
                 print("⚠️ Cloudflare Challenge detected! Waiting...")
                 time.sleep(10)
-                try:
-                    sb.uc_gui_click_captcha()
-                    time.sleep(5)
-                except:
-                    print("   (Captcha click skipped or failed)")
+                try: sb.uc_gui_click_captcha(); time.sleep(5)
+                except: pass
 
-            # 2. Wait for Email Input (handling slow load or blockage)
+            # 3. Wait for Email Input
             print("   Waiting for login form...")
             try:
                 # Try specific ID first, then generic type
@@ -59,31 +73,26 @@ def extract():
                     sb.wait_for_element('input[type="text"], input[type="email"]', timeout=20)
             except Exception as e:
                 print(f"❌ Form not found. Page Text dump:\n{sb.get_text('body')[:300]}")
-                # Retry loop
                 continue
 
             # Fill form
             try:
                 sb.type('#control-0', email, timeout=5)
             except:
-                # Fallback selector
                 sb.type('input[type="text"]', email, timeout=5)
 
             sb.type('#control-1', password)
             time.sleep(2)
 
-            # Submit
             print("   Clicking Login...")
             sb.click('button:contains("Log in")')
-            time.sleep(10) # Give time for Turnstile/Auth
+            time.sleep(10)
 
-            # Verify
             if "auth" not in sb.get_current_url():
                 print("✅ Login Success!")
                 break
             else:
                 print("   ⚠️ Stuck on auth page. Retrying...")
-                # Try clicking via JS as backup
                 sb.execute_script("document.querySelector('button.primary').click()")
                 time.sleep(5)
 
